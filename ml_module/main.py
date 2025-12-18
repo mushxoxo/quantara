@@ -10,6 +10,7 @@ Coordinates all analysis modules to:
 
 from typing import Dict, List, Optional, Tuple, Any
 import sys
+import json
 from pathlib import Path
 
 # Add parent directory to path for imports
@@ -25,6 +26,7 @@ from ml_module.analysis.weather_analysis import WeatherAnalyzer
 from ml_module.analysis.segmentation import extract_segments_for_routes
 from ml_module.analysis.road_safety_score import RoadSafetyScorer
 from ml_module.scoring.resilience_calculator import ResilienceCalculator
+from ml_module.analysis.gemini_summary import generate_summary
 from ml_module.utils.logger import get_logger
 
 logger = get_logger("ml_module.main")
@@ -55,6 +57,9 @@ class RouteAnalysisSystem:
         self.weather_analyzer = WeatherAnalyzer()
         self.road_analyzer = RoadAnalyzer()
         self.road_safety_scorer = RoadSafetyScorer()
+        
+        # Initialize helper functions
+        self.generate_summary = generate_summary
         
         # Initialize scorer
         self.resilience_calculator = ResilienceCalculator()
@@ -210,9 +215,39 @@ class RouteAnalysisSystem:
                 priorities=user_priorities
             )
             
-            # Step 4: Combine all results into enriched routes
+            # Step 4: Gemini Summary Generation
             logger.info("\n" + "="*60)
-            logger.info("STEP 4: COMBINING RESULTS")
+            logger.info("STEP 4: GENERATING GEMINI SUMMARIES")
+            logger.info("="*60)
+            
+            # Prepare data for Gemini (pre-enrichment)
+            # We construct a temporary enriched list to give context to Gemini
+            temp_routes_data = []
+            for i, r in enumerate(routes):
+                r_name = r["route_name"]
+                temp_routes_data.append({
+                    "route_name": r_name,
+                    "distance_text": distance_scores.get(r_name, {}), # actually scores, but passed for ID
+                    "overall_resilience_score": resilience_results[i]["overall_resilience_score"] if i < len(resilience_results) else 0,
+                    "component_scores": resilience_results[i]["component_scores"] if i < len(resilience_results) else {},
+                    "avg_weather_risk": road_results[i]["avg_weather_risk"] if i < len(road_results) else 0,
+                    "road_safety_score": safety_scores.get(r_name, 0.5),
+                    "carbon_score": carbon_scores.get(r_name, 0),
+                    "coordinates": r.get("coordinates", [])
+                })
+                
+            gemini_results = self.generate_summary(
+                routes_data=temp_routes_data,
+                overall_context={
+                    "origin": origin_name,
+                    "destination": destination_name,
+                    "priorities": user_priorities
+                }
+            )
+
+            # Step 5: Combine all results into enriched routes
+            logger.info("\n" + "="*60)
+            logger.info("STEP 5: COMBINING RESULTS")
             logger.info("="*60)
             
             enriched_routes = self._combine_results(
@@ -222,7 +257,8 @@ class RouteAnalysisSystem:
                 carbon_results=carbon_results,
                 road_results=road_results,
                 resilience_results=resilience_results,
-                safety_scores=safety_scores
+                safety_scores=safety_scores,
+                gemini_results=gemini_results
             )
             
             # Format resilience scores for output
@@ -305,7 +341,8 @@ class RouteAnalysisSystem:
                         carbon_results: List[Dict[str, Any]],
                         road_results: List[Dict[str, Any]],
                         resilience_results: List[Dict[str, Any]],
-                        safety_scores: Dict[str, float]) -> List[Dict[str, Any]]:
+                        safety_scores: Dict[str, float],
+                        gemini_results: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         """
         Combine all analysis results into enriched route dictionaries.
         
@@ -341,9 +378,14 @@ class RouteAnalysisSystem:
             resilience_data = resilience_lookup.get(route_name, {})
             safety_score = safety_scores.get(route_name, 0.5)
             
+            # Get Gemini analysis for this route
+            gemini_data = {}
+            if gemini_results:
+                gemini_data = gemini_results.get(route_name, {})
+                
             # Combine into enriched route
             enriched_route = {
-                "route_name": route_name,
+                "route_name": gemini_data.get("route_name", route_name),
                 
                 # Original route data
                 "distance_m": route.get("distance_m", 0),
@@ -379,6 +421,18 @@ class RouteAnalysisSystem:
                 "overall_resilience_score": resilience_data.get("overall_resilience_score", 0),
                 "component_scores": resilience_data.get("component_scores", {}),
                 "weighted_contributions": resilience_data.get("weighted_contributions", {}),
+                
+                # Gemini Analysis (New)
+                "gemini_analysis": {
+                    "route_name": gemini_data.get("route_name", route_name),
+                    "short_summary": gemini_data.get("short_summary", "Analysis pending..."),
+                    "reasoning": gemini_data.get("reasoning", "Detailed analysis not available."),
+                    "intermediate_cities": gemini_data.get("intermediate_cities", []),
+                    "weather_risk_score": road_data.get("avg_weather_risk", 0) * 100,
+                    "road_safety_score": safety_score * 100,
+                    "carbon_score": carbon_data.get("carbon_score", 0) * 100,
+                    "overall_resilience_score": resilience_data.get("overall_resilience_score", 0)
+                }
             }
             
             enriched.append(enriched_route)
@@ -389,3 +443,35 @@ class RouteAnalysisSystem:
         logger.info(f"✓ Combined data for {len(enriched)} routes")
         
         return enriched
+
+if __name__ == "__main__":
+    try:
+        # Simple argument parsing
+        # Usage: python main.py "Origin" "Destination" '{"time": 0.5, ...}'
+        
+        if len(sys.argv) < 3:
+            logger.error("Usage: python main.py <origin> <destination> [priorities_json]")
+            # Print empty JSON to avoid crashing node parser if possible, or just exit
+            print(json.dumps({"error": "Missing arguments"}))
+            sys.exit(1)
+            
+        origin = sys.argv[1]
+        destination = sys.argv[2]
+        
+        priorities = None
+        if len(sys.argv) > 3:
+            try:
+                priorities = json.loads(sys.argv[3])
+            except:
+                logger.warning("Could not parse priorities JSON, using defaults")
+        
+        system = RouteAnalysisSystem()
+        result = system.analyze_routes(origin, destination, priorities)
+        
+        # Output result as JSON to stdout
+        print(json.dumps(result, default=str))
+        
+    except Exception as e:
+        logger.error(f"Critical System Error: {str(e)}")
+        print(json.dumps({"error": str(e), "status": "error"}))
+        sys.exit(1)

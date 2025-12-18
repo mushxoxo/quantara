@@ -78,12 +78,12 @@ export function MapView({ route, isDarkMode = false }: MapViewProps) {
       return null;
     } catch (err: any) {
       console.error(`Geocoding error for ${city}:`, err);
-      
+
       // Handle axios errors with status codes
       if (err.response) {
         const status = err.response.status;
         const errorMessage = err.response.data?.error || err.response.statusText || "Unknown error";
-        
+
         if (status === 500) {
           console.error(`Server error while geocoding ${city}: ${errorMessage}`);
         } else if (status === 400) {
@@ -92,7 +92,7 @@ export function MapView({ route, isDarkMode = false }: MapViewProps) {
       } else if (err.request) {
         console.error(`Network error while geocoding ${city}: Could not reach backend server`);
       }
-      
+
       return null;
     }
   };
@@ -126,12 +126,12 @@ export function MapView({ route, isDarkMode = false }: MapViewProps) {
       });
     } catch (err: any) {
       console.error("Route fetching error:", err);
-      
+
       // Handle axios errors with status codes
       if (err.response) {
         const status = err.response.status;
         const errorMessage = err.response.data?.error || err.response.statusText || "Unknown error";
-        
+
         if (status === 500) {
           throw new Error(`Server error: ${errorMessage}. Please check if the backend server is running and GraphHopper API key is configured.`);
         } else if (status === 400) {
@@ -250,26 +250,24 @@ export function MapView({ route, isDarkMode = false }: MapViewProps) {
 
           {/* Efficiency Score (using resilience score from ML module) */}
           <div className="absolute top-6 left-6 flex gap-3 z-[400]">
-            <div className={`rounded-xl shadow-lg bg-white/90 dark:bg-gray-800/90 overflow-hidden transition-all ${
-              isGeminiOutputOpen ? 'w-96' : 'w-auto'
-            }`}>
+            <div className={`rounded-xl shadow-lg bg-white/90 dark:bg-gray-800/90 overflow-hidden transition-all ${isGeminiOutputOpen ? 'w-96' : 'w-auto'
+              }`}>
               <div className="px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="text-lime-600 dark:text-lime-400" />
-                <div>
-                  <div className="text-xs text-gray-500">Efficiency Score</div>
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="text-lime-600 dark:text-lime-400" />
+                    <div>
+                      <div className="text-xs text-gray-500">Efficiency Score</div>
                       <div className="text-lg font-semibold">{Math.round(route.resilienceScore * 10)}%</div>
                     </div>
                   </div>
                   {route.geminiOutput && (
                     <button
                       onClick={() => setIsGeminiOutputOpen(!isGeminiOutputOpen)}
-                      className={`p-1.5 rounded-lg transition-colors ${
-                        isDarkMode
+                      className={`p-1.5 rounded-lg transition-colors ${isDarkMode
                           ? 'hover:bg-gray-700 text-gray-300'
                           : 'hover:bg-gray-100 text-gray-600'
-                      }`}
+                        }`}
                       title="View AI Analysis"
                     >
                       {isGeminiOutputOpen ? (
@@ -281,222 +279,165 @@ export function MapView({ route, isDarkMode = false }: MapViewProps) {
                   )}
                 </div>
               </div>
-              
+
               {/* Gemini Output Dropdown */}
               {isGeminiOutputOpen && route.geminiOutput && (
-                <div className={`border-t px-4 py-4 max-h-96 overflow-y-auto ${
-                  isDarkMode ? 'border-gray-700' : 'border-gray-200'
-                }`}>
+                <div className={`border-t px-4 py-4 max-h-96 overflow-y-auto ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                  }`}>
                   <div className="flex items-center gap-2 mb-3">
                     <Info className="w-4 h-4 text-lime-600 dark:text-lime-400" />
-                    <h4 className={`text-sm font-semibold ${
-                      isDarkMode ? 'text-white' : 'text-gray-900'
-                    }`}>
+                    <h4 className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}>
                       AI Analysis Details
                     </h4>
                   </div>
-                  
+
                   {/* Summary */}
                   <div className="mb-4">
-                    <div className={`text-xs font-medium mb-1 ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                    }`}>
+                    <div className={`text-xs font-medium mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                      }`}>
                       Summary
                     </div>
-                    <div className={`text-sm ${
-                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                    }`}>
+                    <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                      }`}>
                       {route.geminiOutput.short_summary}
                     </div>
                   </div>
-                  
+
                   {/* Reasoning */}
                   <div className="mb-4">
-                    <div className={`text-xs font-medium mb-1 ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                    }`}>
+                    <div className={`text-xs font-medium mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                      }`}>
                       Reasoning
                     </div>
-                    <div className={`text-sm ${
-                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                    }`}>
+                    <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                      }`}>
                       {route.geminiOutput.reasoning}
                     </div>
                   </div>
-                  
+
                   {/* Detailed Scores */}
                   <div>
-                    <div className={`text-xs font-medium mb-2 ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                    }`}>
+                    <div className={`text-xs font-medium mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                      }`}>
                       Detailed Scores (0-100)
                     </div>
                     <div className="space-y-2">
                       {/* Weather Risk Score */}
                       <div>
                         <div className="flex justify-between items-center mb-1">
-                          <span className={`text-xs ${
-                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>
+                          <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`}>
                             Weather Risk
                           </span>
-                          <span className={`text-sm font-semibold ${
-                            route.geminiOutput.weather_risk_score > 70
+                          <span className={`text-sm font-semibold ${route.geminiOutput.weather_risk_score > 70
                               ? 'text-red-500'
                               : route.geminiOutput.weather_risk_score > 40
-                              ? 'text-yellow-500'
-                              : 'text-green-500'
-                          }`}>
+                                ? 'text-yellow-500'
+                                : 'text-green-500'
+                            }`}>
                             {route.geminiOutput.weather_risk_score}
                           </span>
                         </div>
-                        <div className={`h-1.5 rounded-full overflow-hidden ${
-                          isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
-                        }`}>
+                        <div className={`h-1.5 rounded-full overflow-hidden ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+                          }`}>
                           <div
-                            className={`h-full ${
-                              route.geminiOutput.weather_risk_score > 70
+                            className={`h-full ${route.geminiOutput.weather_risk_score > 70
                                 ? 'bg-red-500'
                                 : route.geminiOutput.weather_risk_score > 40
-                                ? 'bg-yellow-500'
-                                : 'bg-green-500'
-                            }`}
+                                  ? 'bg-yellow-500'
+                                  : 'bg-green-500'
+                              }`}
                             style={{ width: `${route.geminiOutput.weather_risk_score}%` }}
                           />
                         </div>
                       </div>
-                      
+
                       {/* Road Safety Score */}
                       <div>
                         <div className="flex justify-between items-center mb-1">
-                          <span className={`text-xs ${
-                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>
+                          <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`}>
                             Road Safety
                           </span>
-                          <span className={`text-sm font-semibold ${
-                            route.geminiOutput.road_safety_score > 70
+                          <span className={`text-sm font-semibold ${route.geminiOutput.road_safety_score > 70
                               ? 'text-green-500'
                               : route.geminiOutput.road_safety_score > 40
-                              ? 'text-yellow-500'
-                              : 'text-red-500'
-                          }`}>
+                                ? 'text-yellow-500'
+                                : 'text-red-500'
+                            }`}>
                             {route.geminiOutput.road_safety_score}
                           </span>
                         </div>
-                        <div className={`h-1.5 rounded-full overflow-hidden ${
-                          isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
-                        }`}>
+                        <div className={`h-1.5 rounded-full overflow-hidden ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+                          }`}>
                           <div
-                            className={`h-full ${
-                              route.geminiOutput.road_safety_score > 70
+                            className={`h-full ${route.geminiOutput.road_safety_score > 70
                                 ? 'bg-green-500'
                                 : route.geminiOutput.road_safety_score > 40
-                                ? 'bg-yellow-500'
-                                : 'bg-red-500'
-                            }`}
+                                  ? 'bg-yellow-500'
+                                  : 'bg-red-500'
+                              }`}
                             style={{ width: `${route.geminiOutput.road_safety_score}%` }}
                           />
                         </div>
                       </div>
-                      
-                      {/* Social Risk Score */}
+
+                      {/* Carbon Emission Score */}
                       <div>
                         <div className="flex justify-between items-center mb-1">
-                          <span className={`text-xs ${
-                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>
-                            Social Risk
+                          <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`}>
+                            Carbon Efficiency
                           </span>
-                          <span className={`text-sm font-semibold ${
-                            route.geminiOutput.social_risk_score > 70
-                              ? 'text-red-500'
-                              : route.geminiOutput.social_risk_score > 40
-                              ? 'text-yellow-500'
-                              : 'text-green-500'
-                          }`}>
-                            {route.geminiOutput.social_risk_score}
+                          <span className={`text-sm font-semibold ${(route.geminiOutput.carbon_score || 0) > 70
+                              ? 'text-green-500'
+                              : (route.geminiOutput.carbon_score || 0) > 40
+                                ? 'text-yellow-500'
+                                : 'text-red-500'
+                            }`}>
+                            {route.geminiOutput.carbon_score || 0}
                           </span>
                         </div>
-                        <div className={`h-1.5 rounded-full overflow-hidden ${
-                          isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
-                        }`}>
+                        <div className={`h-1.5 rounded-full overflow-hidden ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+                          }`}>
                           <div
-                            className={`h-full ${
-                              route.geminiOutput.social_risk_score > 70
-                                ? 'bg-red-500'
-                                : route.geminiOutput.social_risk_score > 40
-                                ? 'bg-yellow-500'
-                                : 'bg-green-500'
-                            }`}
-                            style={{ width: `${route.geminiOutput.social_risk_score}%` }}
+                            className={`h-full ${(route.geminiOutput.carbon_score || 0) > 70
+                                ? 'bg-green-500'
+                                : (route.geminiOutput.carbon_score || 0) > 40
+                                  ? 'bg-yellow-500'
+                                  : 'bg-red-500'
+                              }`}
+                            style={{ width: `${route.geminiOutput.carbon_score || 0}%` }}
                           />
                         </div>
                       </div>
-                      
-                      {/* Traffic Risk Score */}
-                      <div>
-                        <div className="flex justify-between items-center mb-1">
-                          <span className={`text-xs ${
-                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>
-                            Traffic Risk
-                          </span>
-                          <span className={`text-sm font-semibold ${
-                            route.geminiOutput.traffic_risk_score > 70
-                              ? 'text-red-500'
-                              : route.geminiOutput.traffic_risk_score > 40
-                              ? 'text-yellow-500'
-                              : 'text-green-500'
-                          }`}>
-                            {route.geminiOutput.traffic_risk_score}
-                          </span>
-                        </div>
-                        <div className={`h-1.5 rounded-full overflow-hidden ${
-                          isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
-                        }`}>
-                          <div
-                            className={`h-full ${
-                              route.geminiOutput.traffic_risk_score > 70
-                                ? 'bg-red-500'
-                                : route.geminiOutput.traffic_risk_score > 40
-                                ? 'bg-yellow-500'
-                                : 'bg-green-500'
-                            }`}
-                            style={{ width: `${route.geminiOutput.traffic_risk_score}%` }}
-                          />
-                        </div>
-                      </div>
-                      
+
                       {/* Overall Resilience Score */}
                       <div className="pt-2 border-t border-gray-300 dark:border-gray-700">
                         <div className="flex justify-between items-center mb-1">
-                          <span className={`text-xs font-semibold ${
-                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                          }`}>
+                          <span className={`text-xs font-semibold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>
                             Overall Resilience
                           </span>
-                          <span className={`text-sm font-bold ${
-                            route.geminiOutput.overall_resilience_score > 70
+                          <span className={`text-sm font-bold ${route.geminiOutput.overall_resilience_score > 70
                               ? 'text-lime-500'
                               : route.geminiOutput.overall_resilience_score > 40
-                              ? 'text-yellow-500'
-                              : 'text-red-500'
-                          }`}>
+                                ? 'text-yellow-500'
+                                : 'text-red-500'
+                            }`}>
                             {route.geminiOutput.overall_resilience_score}
                           </span>
                         </div>
-                        <div className={`h-2 rounded-full overflow-hidden ${
-                          isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
-                        }`}>
+                        <div className={`h-2 rounded-full overflow-hidden ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+                          }`}>
                           <div
-                            className={`h-full ${
-                              route.geminiOutput.overall_resilience_score > 70
+                            className={`h-full ${route.geminiOutput.overall_resilience_score > 70
                                 ? 'bg-lime-500'
                                 : route.geminiOutput.overall_resilience_score > 40
-                                ? 'bg-yellow-500'
-                                : 'bg-red-500'
-                            }`}
+                                  ? 'bg-yellow-500'
+                                  : 'bg-red-500'
+                              }`}
                             style={{ width: `${route.geminiOutput.overall_resilience_score}%` }}
                           />
                         </div>

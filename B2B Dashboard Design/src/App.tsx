@@ -37,6 +37,7 @@ export interface Route {
   geminiOutput?: {
     weather_risk_score: number;
     road_safety_score: number;
+    carbon_score: number;
     social_risk_score: number;
     traffic_risk_score: number;
     overall_resilience_score: number;
@@ -167,13 +168,13 @@ export default function App() {
     console.log(`Destination: ${destination}`);
     console.log(`Current Priorities:`, priorities);
     console.log(`OSMnx enabled: ${osmnxEnabled}`);
-    
+
     // Clear previous routes and logs
     setRoutes([]);
     setSelectedRoute(null);
     setLoadingLogs([]);
     setLoadingProgress(0);
-    
+
     setSourceCity(source);
     setDestCity(destination);
     setIsLoadingRoutes(true);
@@ -195,13 +196,13 @@ export default function App() {
         },
         osmnxEnabled
       };
-      
+
       console.log("FRONTEND: Calling backend API /analyze-routes");
       console.log("Request body:", JSON.stringify(requestBody, null, 2));
-      
+
       setLoadingLogs(prev => [...prev, "Geocoding locations...", "Fetching routes from Google Maps..."]);
       setLoadingProgress(30);
-      
+
       // Call backend API to analyze routes
       const response = await fetch("http://localhost:5000/analyze-routes", {
         method: "POST",
@@ -226,7 +227,7 @@ export default function App() {
       console.log(`Number of routes: ${data.routes?.length || 0}`);
       console.log(`Best route: ${data.bestRoute || "N/A"}`);
       console.log(`Analysis complete: ${data.analysisComplete}`);
-      
+
       if (data.routes && data.routes.length > 0) {
         const recommendedCount = data.routes.filter((r: Route) => r.resilienceScore > 8).length;
         console.log(`Recommended routes (score > 8): ${recommendedCount}`);
@@ -235,10 +236,10 @@ export default function App() {
           const routeName = (route as any).route_name || route.courier.name || route.id;
           console.log(`  ${index + 1}. ${routeName} - Score: ${route.resilienceScore.toFixed(2)}/10 - Status: ${route.status}`);
         });
-        
+
         setLoadingLogs(prev => [...prev, `Found ${data.routes.length} route(s)`, `Recommended: ${recommendedCount} route(s)`]);
         setLoadingProgress(90);
-        
+
         setRoutes(data.routes);
         setSelectedRoute(data.routes[0]);
         setLoadingLogs(prev => [...prev, "✓ Analysis complete!"]);
@@ -270,7 +271,7 @@ export default function App() {
   const handlePrioritiesChange = (newPriorities: { time: number; distance: number; safety: number; carbonEmission: number }) => {
     console.log("FRONTEND: Priorities changed (UI only, not recalculating)");
     console.log("New priorities:", newPriorities);
-    
+
     // Just update the state - don't trigger recalculation
     setPriorities(newPriorities);
   };
@@ -278,7 +279,7 @@ export default function App() {
   const handleRecalculate = async (newPriorities: { time: number; distance: number; safety: number; carbonEmission: number }) => {
     console.log("FRONTEND: Recalculate button clicked");
     console.log("Priorities for recalculation:", newPriorities);
-    
+
     // Re-score routes with new priorities if we have source/destination
     // Use /rescore-routes endpoint (only Gemini, no Google Maps)
     if (sourceCity && destCity) {
@@ -286,7 +287,7 @@ export default function App() {
       setIsLoadingRoutes(true);
       setLoadingLogs(prev => [...prev, "Re-scoring routes with updated priorities...", "Running AI analysis..."]);
       setLoadingProgress(50);
-      
+
       try {
         const requestBody = {
           source: sourceCity,
@@ -298,10 +299,10 @@ export default function App() {
             carbonEmission: newPriorities.carbonEmission
           }
         };
-        
+
         console.log("FRONTEND: Calling /rescore-routes endpoint (Gemini only, no Google Maps)");
         console.log("Request body:", JSON.stringify(requestBody, null, 2));
-        
+
         const response = await fetch("http://localhost:5000/rescore-routes", {
           method: "POST",
           headers: {
@@ -316,7 +317,7 @@ export default function App() {
         if (response.ok) {
           const data = await response.json();
           console.log(`FRONTEND: Received ${data.routes?.length || 0} re-scored routes`);
-          
+
           if (data.routes && data.routes.length > 0) {
             const recommendedCount = data.routes.filter((r: Route) => r.resilienceScore > 8).length;
             console.log(`Recommended routes (score > 8): ${recommendedCount}`);
@@ -325,10 +326,10 @@ export default function App() {
               const routeName = (route as any).route_name || route.courier.name || route.id;
               console.log(`  ${index + 1}. ${routeName} - Efficiency: ${(route.resilienceScore * 10).toFixed(1)}% - Status: ${route.status}`);
             });
-            
+
             setLoadingLogs(prev => [...prev, `Found ${data.routes.length} route(s)`, `Recommended: ${recommendedCount} route(s)`]);
             setLoadingProgress(95);
-            
+
             setRoutes(data.routes);
             // Keep the same selected route if it still exists
             if (selectedRoute) {
@@ -339,7 +340,7 @@ export default function App() {
             } else {
               setSelectedRoute(data.routes[0]);
             }
-            
+
             setLoadingLogs(prev => [...prev, "✓ Recalculation complete!"]);
             setLoadingProgress(100);
           }
@@ -425,8 +426,8 @@ export default function App() {
                 setIsMenuOpen(false);
               }}
               className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${isDarkMode
-                  ? 'hover:bg-gray-700 text-sm font-medium text-gray-200'
-                  : 'hover:bg-gray-50 text-sm font-medium text-gray-700'
+                ? 'hover:bg-gray-700 text-sm font-medium text-gray-200'
+                : 'hover:bg-gray-50 text-sm font-medium text-gray-700'
                 }`}
             >
               <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-gray-700 text-lime-400' : 'bg-gray-100 text-lime-600'
@@ -447,12 +448,12 @@ export default function App() {
             }`}>
             <div className="h-full overflow-y-auto">
               {routes.length > 0 && selectedRoute ? (
-              <RouteList
-                routes={routes}
-                selectedRoute={selectedRoute}
-                onSelectRoute={setSelectedRoute}
-                isDarkMode={isDarkMode}
-              />
+                <RouteList
+                  routes={routes}
+                  selectedRoute={selectedRoute}
+                  onSelectRoute={setSelectedRoute}
+                  isDarkMode={isDarkMode}
+                />
               ) : (
                 <div className="flex items-center justify-center h-full">
                   <div className={`text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -491,8 +492,8 @@ export default function App() {
                     </span>
                   </label>
                 </div>
-                <RouteSensitivityControls 
-                  isDarkMode={isDarkMode} 
+                <RouteSensitivityControls
+                  isDarkMode={isDarkMode}
                   onPrioritiesChange={handlePrioritiesChange}
                   onRecalculate={handleRecalculate}
                   disabled={routes.length === 0 || isLoadingRoutes}
@@ -506,7 +507,7 @@ export default function App() {
                   {/* Map View */}
                   <Panel defaultSize={75} minSize={50}>
                     {selectedRoute ? (
-                    <MapView route={selectedRoute} isDarkMode={isDarkMode} />
+                      <MapView route={selectedRoute} isDarkMode={isDarkMode} />
                     ) : (
                       <div className="flex items-center justify-center h-full">
                         <div className={`text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>

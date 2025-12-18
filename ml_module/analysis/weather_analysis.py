@@ -24,7 +24,7 @@ class WeatherAnalyzer:
     WIND_CRITICAL_MS = 25.0  # m/s wind speed
     
     # Sample weather every N km
-    WEATHER_SAMPLE_INTERVAL_KM = 50.0
+    # WEATHER_SAMPLE_INTERVAL_KM = 50.0
     
     def __init__(self):
         """Initialize the Weather Analyzer."""

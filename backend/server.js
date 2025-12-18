@@ -357,7 +357,8 @@ app.post("/analyze-routes", async (req, res) => {
                     const routeName = route.route_name || `Route ${index + 1}`;
                     const scoreData = scoredRoutes.find(r => r.route_name === routeName) || {};
 
-                    const resilienceScore100 = scoreData.overall_resilience_score || 0;
+                    // Fallback to route object itself which is enriched, fixing 0 score issue
+                    const resilienceScore100 = route.overall_resilience_score || scoreData.overall_resilience_score || 0;
                     const resilienceScore = resilienceScore100 / 10;  // Convert to 0-10 scale
 
                     let status = "Under Evaluation";
@@ -391,9 +392,24 @@ app.post("/analyze-routes", async (req, res) => {
                     const carbonText = `${Math.round(carbonKg)} kg CO₂`;
 
                     // Generate summary and reasoning for frontend
-                    const componentScores = scoreData.component_scores || {};
+                    const componentScores = route.component_scores || scoreData.component_scores || {};
                     const shortSummary = `Route ${weatherRisk > 0.7 ? 'has high' : 'has moderate'} weather risk. Total distance: ${distanceText}.`;
-                    const reasoning = `Time Score: ${(componentScores.time_score || 0).toFixed(2)}, Distance Score: ${(componentScores.distance_score || 0).toFixed(2)}, Carbon Score: ${(componentScores.carbon_score || 0).toFixed(2)}, Road Quality: ${(componentScores.road_quality_score || 0).toFixed(2)}`;
+                    const reasoning = `Time: ${(componentScores.time_score || 0).toFixed(2)}, Distance: ${(componentScores.distance_score || 0).toFixed(2)}, Carbon: ${(componentScores.carbon_score || 0).toFixed(2)}, Road: ${(componentScores.road_quality_score || 0).toFixed(2)}`;
+
+                    // Gemini Output mapping (passed from Python or fallbacks)
+                    const geminiAnalysis = route.gemini_analysis || {};
+                    const geminiOutput = {
+                        weather_risk_score: Math.round(geminiAnalysis.weather_risk_score || weatherRisk * 100),
+                        road_safety_score: Math.round(geminiAnalysis.road_safety_score || (route.road_safety_score || 0.5) * 100),
+                        // Now using Carbon Score instead of risks
+                        carbon_score: Math.round(geminiAnalysis.carbon_score || (route.carbon_score || 0) * 100),
+                        social_risk_score: 0, // Keeping for backward compatibility if needed, but UI uses carbon
+                        traffic_risk_score: 0,
+
+                        overall_resilience_score: Math.round(geminiAnalysis.overall_resilience_score || resilienceScore100),
+                        short_summary: geminiAnalysis.short_summary || shortSummary,
+                        reasoning: geminiAnalysis.reasoning || reasoning
+                    };
 
                     return {
                         id: String(index + 1),
@@ -408,23 +424,17 @@ app.post("/analyze-routes", async (req, res) => {
                         distance: distanceText,
                         lastUpdated: "Just now",
                         courier: {
-                            name: routeName,
-                            avatar: routeName.substring(0, 2).toUpperCase()
+                            // Use creative name from Gemini if available
+                            name: geminiAnalysis.route_name || routeName,
+                            avatar: (geminiAnalysis.route_name || routeName).substring(0, 2).toUpperCase()
                         },
                         isRecommended: resilienceScore > 8,
                         coordinates: {
                             origin: [sourceLat, sourceLon],
                             destination: [destLat, destLon]
                         },
-                        analysisData: {
-                            weather_risk_score: Math.round(weatherRisk * 100),
-                            road_safety_score: Math.round((route.road_safety_score || 0.5) * 100),
-                            social_risk_score: 0, // Placeholder as social risk is not yet implemented
-                            traffic_risk_score: 0, // Placeholder
-                            overall_resilience_score: resilienceScore100,
-                            short_summary: shortSummary,
-                            reasoning: reasoning
-                        }
+                        analysisData: geminiOutput, // Legacy support
+                        geminiOutput: geminiOutput  // New Frontend field
                     };
                 }) || [];
 
@@ -584,7 +594,8 @@ app.post("/rescore-routes", async (req, res) => {
                     const routeName = route.route_name || `Route ${index + 1}`;
                     const scoreData = scoredRoutes.find(r => r.route_name === routeName) || {};
 
-                    const resilienceScore100 = scoreData.overall_resilience_score || 0;
+                    // Fallback to route object itself which is enriched, fixing 0 score issue
+                    const resilienceScore100 = route.overall_resilience_score || scoreData.overall_resilience_score || 0;
                     const resilienceScore = resilienceScore100 / 10;
 
                     let status = "Under Evaluation";
@@ -609,9 +620,24 @@ app.post("/rescore-routes", async (req, res) => {
                     const carbonKg = route.total_carbon_kg || 0;
                     const carbonText = `${Math.round(carbonKg)} kg CO₂`;
 
-                    const componentScores = scoreData.component_scores || {};
+                    const componentScores = route.component_scores || scoreData.component_scores || {};
                     const shortSummary = `Route ${weatherRisk > 0.7 ? 'has high' : 'has moderate'} weather risk. Total distance: ${distanceText}.`;
                     const reasoning = `Time: ${(componentScores.time_score || 0).toFixed(2)}, Distance: ${(componentScores.distance_score || 0).toFixed(2)}, Carbon: ${(componentScores.carbon_score || 0).toFixed(2)}, Road: ${(componentScores.road_quality_score || 0).toFixed(2)}`;
+
+                    // Gemini Output mapping (passed from Python or fallbacks)
+                    const geminiAnalysis = route.gemini_analysis || {};
+                    const geminiOutput = {
+                        weather_risk_score: Math.round(geminiAnalysis.weather_risk_score || weatherRisk * 100),
+                        road_safety_score: Math.round(geminiAnalysis.road_safety_score || (route.road_safety_score || 0.5) * 100),
+                        // Now using Carbon Score instead of risks
+                        carbon_score: Math.round(geminiAnalysis.carbon_score || (route.carbon_score || 0) * 100),
+                        social_risk_score: 0, // Keeping for backward compatibility if needed, but UI uses carbon
+                        traffic_risk_score: 0,
+
+                        overall_resilience_score: Math.round(geminiAnalysis.overall_resilience_score || resilienceScore100),
+                        short_summary: geminiAnalysis.short_summary || shortSummary,
+                        reasoning: geminiAnalysis.reasoning || reasoning
+                    };
 
                     return {
                         id: String(index + 1),
@@ -626,21 +652,14 @@ app.post("/rescore-routes", async (req, res) => {
                         distance: distanceText,
                         lastUpdated: "Just now",
                         courier: {
-                            name: routeName,
-                            avatar: routeName.substring(0, 2).toUpperCase()
+                            // Use creative name from Gemini if available
+                            name: geminiAnalysis.route_name || routeName,
+                            avatar: (geminiAnalysis.route_name || routeName).substring(0, 2).toUpperCase()
                         },
                         isRecommended: resilienceScore > 8,
                         coordinates: cached.coordinates,
-                        coordinates: cached.coordinates,
-                        analysisData: {
-                            weather_risk_score: Math.round(weatherRisk * 100),
-                            road_safety_score: Math.round((route.road_safety_score || route.road_quality_score || 0.5) * 100),
-                            social_risk_score: 0, // Placeholder
-                            traffic_risk_score: 0, // Placeholder
-                            overall_resilience_score: resilienceScore100,
-                            short_summary: shortSummary,
-                            reasoning: reasoning
-                        }
+                        analysisData: geminiOutput, // Legacy support
+                        geminiOutput: geminiOutput  // New Frontend field
                     };
                 }) || [];
 
@@ -653,6 +672,7 @@ app.post("/rescore-routes", async (req, res) => {
 
                 res.json({
                     routes: routes,
+                    // Using route info if best_route_name matches none in resilience_scores
                     bestRoute: resilience_scores.best_route_name,
                     analysisComplete: true
                 });

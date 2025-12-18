@@ -55,8 +55,10 @@ def setup_logger(
     file_handler.setFormatter(detailed_formatter)
     logger.addHandler(file_handler)
     
+    import sys
+    
     # Console handler
-    console_handler = logging.StreamHandler()
+    console_handler = logging.StreamHandler(sys.stderr)
     console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
