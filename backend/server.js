@@ -6,6 +6,12 @@ import { spawn } from "child_process";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
+import mongoose from "mongoose";
+import RecommendedRoute from "./models/RecommendedRoute.js";
+//import CoveredPoint from "./models/CoveredPoints.js";
+//import { simulateRouteMovement } from "./utils/simulation.js";
+import simulateRoute from "../ml_module/utils/simulation.js";
+import polyline from "@mapbox/polyline";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,6 +31,12 @@ if (fs.existsSync(rootEnvPath)) {
     dotenv.config(); // Default behavior
     console.log("Warning: No .env file found. Using default dotenv behavior.");
 }
+
+//MongoDB
+mongoose.connect(process.env.MONGO_URI)
+.then(() => console.log("MongoDB connected"))
+.catch(err => console.error("MongoDB connection error:", err));
+
 
 const app = express();
 app.use(cors());
@@ -70,6 +82,7 @@ app.use((req, res, next) => {
     if (req.body && Object.keys(req.body).length > 0) {
         log(`Request body: ${JSON.stringify(req.body).substring(0, 200)}...`);
     }
+
     next();
 });
 
@@ -308,7 +321,7 @@ app.post("/analyze-routes", async (req, res) => {
             process.stderr.write(`[PYTHON ERROR] ${chunk}`);
         });
 
-        pythonProcess.on("close", (code) => {
+        pythonProcess.on("close", async (code) => {
             log(`Python process exited with code: ${code}`);
 
             if (code !== 0) {
@@ -398,6 +411,10 @@ app.post("/analyze-routes", async (req, res) => {
 
                     // Gemini Output mapping (passed from Python or fallbacks)
                     const geminiAnalysis = route.gemini_analysis || {};
+                    const intermediateCities = Array.isArray(geminiAnalysis.intermediate_cities)
+    ? geminiAnalysis.intermediate_cities.slice(0, 2)
+    : [];
+
                     const geminiOutput = {
                         weather_risk_score: Math.round(geminiAnalysis.weather_risk_score || weatherRisk * 100),
                         road_safety_score: Math.round(geminiAnalysis.road_safety_score || (route.road_safety_score || 0.5) * 100),
@@ -408,7 +425,8 @@ app.post("/analyze-routes", async (req, res) => {
 
                         overall_resilience_score: Math.round(geminiAnalysis.overall_resilience_score || resilienceScore100),
                         short_summary: geminiAnalysis.short_summary || shortSummary,
-                        reasoning: geminiAnalysis.reasoning || reasoning
+                        reasoning: geminiAnalysis.reasoning || reasoning,
+                        intermediate_cities: intermediateCities
                     };
 
                     return {
@@ -435,12 +453,45 @@ app.post("/analyze-routes", async (req, res) => {
                         },
                         overview_polyline: route.overview_polyline,
                         analysisData: geminiOutput, // Legacy support
-                        geminiOutput: geminiOutput  // New Frontend field
+                        geminiOutput: geminiOutput,  // New Frontend field
+                        intermediate_cities: intermediateCities
                     };
                 }) || [];
-
+               
+                
                 log(`Transformed ${routes.length} routes for frontend`);
                 log(`Recommended routes (score > 8): ${routes.filter(r => r.resilienceScore > 8).length}`);
+// ===============================
+// SAVE BEST ROUTE + START SIMULATION
+// ===============================
+console.log("🔥 SAVING BEST ROUTE TO DB");
+
+const bestRoute = routes.find(r => r.isRecommended);
+
+if (!bestRoute) {
+    console.warn("⚠️ No recommended route found");
+} else {
+
+    const decodedCoordinates = polyline
+        .decode(bestRoute.overview_polyline)
+        .map(([lat, lng]) => ({ lat, lng }));
+
+    const savedRoute = await RecommendedRoute.create({
+        ml_route_id: bestRoute.id,
+        route_name: bestRoute.courier.name,
+
+        source,
+        destination,
+
+        overview_polyline: bestRoute.overview_polyline,
+        decoded_coordinates: decodedCoordinates,
+
+        intermediate_cities: bestRoute.intermediate_cities
+    });
+
+    console.log("🚀 STARTING SIMULATION");
+    simulateRoute(savedRoute).catch(console.error);
+}
 
                 // Cache routes for re-scoring
                 const cacheKey = `${source}_${destination}`;
@@ -552,7 +603,7 @@ app.post("/rescore-routes", async (req, res) => {
             process.stderr.write(`[PYTHON ERROR] ${chunk}`);
         });
 
-        pythonProcess.on("close", (code) => {
+        pythonProcess.on("close", async (code) => {
             log(`Python process exited with code: ${code}`);
 
             if (code !== 0) {
@@ -587,6 +638,38 @@ app.post("/rescore-routes", async (req, res) => {
                     log(`Re-scoring error: ${result.error}`, "ERROR");
                     return res.status(500).json({ error: result.error });
                 }
+//const bestRouteName = result.best_route;
+
+// ⚠️ IMPORTANT: use ML routes, not frontend routes
+console.log("🔥 SAVING BEST ROUTE TO DB");
+
+const bestRoute = routes.find(r => r.isRecommended);
+
+if (!bestRoute) {
+    console.warn("⚠️ No recommended route found");
+} else {
+
+    const decodedCoordinates = polyline
+        .decode(bestRoute.overview_polyline)
+        .map(([lat, lng]) => ({ lat, lng }));
+
+    const savedRoute = await RecommendedRoute.create({
+        ml_route_id: bestRoute.id,
+        route_name: bestRoute.courier.name,
+
+        source,
+        destination,
+
+        overview_polyline: bestRoute.overview_polyline,
+        decoded_coordinates: decodedCoordinates,
+
+        intermediate_cities: bestRoute.intermediate_cities
+    });
+
+    console.log("🚀 STARTING SIMULATION");
+    simulateRoute(savedRoute).catch(console.error);
+}
+
 
                 const resilience_scores = result.resilience_scores || {};
                 const scoredRoutes = resilience_scores.routes || [];
@@ -627,6 +710,10 @@ app.post("/rescore-routes", async (req, res) => {
 
                     // Gemini Output mapping (passed from Python or fallbacks)
                     const geminiAnalysis = route.gemini_analysis || {};
+                    const intermediateCities =
+    Array.isArray(geminiAnalysis.intermediate_cities)
+        ? geminiAnalysis.intermediate_cities.slice(0, 2) // limit to 2
+        : [];
                     const geminiOutput = {
                         weather_risk_score: Math.round(geminiAnalysis.weather_risk_score || weatherRisk * 100),
                         road_safety_score: Math.round(geminiAnalysis.road_safety_score || (route.road_safety_score || 0.5) * 100),
@@ -637,7 +724,8 @@ app.post("/rescore-routes", async (req, res) => {
 
                         overall_resilience_score: Math.round(geminiAnalysis.overall_resilience_score || resilienceScore100),
                         short_summary: geminiAnalysis.short_summary || shortSummary,
-                        reasoning: geminiAnalysis.reasoning || reasoning
+                        reasoning: geminiAnalysis.reasoning || reasoning,
+                        intermediate_cities: intermediateCities
                     };
 
                     return {
@@ -661,7 +749,8 @@ app.post("/rescore-routes", async (req, res) => {
                         coordinates: cached.coordinates,
                         overview_polyline: route.overview_polyline,
                         analysisData: geminiOutput, // Legacy support
-                        geminiOutput: geminiOutput  // New Frontend field
+                        geminiOutput: geminiOutput,  // New Frontend field
+                        intermediateCities: intermediateCities
                     };
                 }) || [];
 

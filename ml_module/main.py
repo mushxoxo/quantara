@@ -245,6 +245,7 @@ class RouteAnalysisSystem:
                 }
             )
 
+
             # Step 5: Combine all results into enriched routes
             logger.info("\n" + "="*60)
             logger.info("STEP 5: COMBINING RESULTS")
@@ -278,21 +279,6 @@ class RouteAnalysisSystem:
             logger.info(f"✓ Reason: {formatted_scores['reason_for_selection']}")
             logger.info("="*80)
             
-            # Save resilient path coordinates
-            try:
-                best_route_name = formatted_scores['best_route_name']
-                best_route_data = next((r for r in enriched_routes if r["route_name"] == best_route_name), None)
-                
-                if best_route_data and "coordinates" in best_route_data:
-                    output_path = Path(__file__).parent / "resilient_path.json"
-                    with open(output_path, "w") as f:
-                        json.dump(best_route_data["coordinates"], f)
-                    logger.info(f"✓ Saved resilient path coordinates to {output_path}")
-                else:
-                    logger.warning(f"Could not find coordinates for best route: {best_route_name}")
-            except Exception as e:
-                logger.warning(f"Failed to save resilient path coordinates: {str(e)}")
-
             return result
             
         except Exception as e:
@@ -398,6 +384,23 @@ class RouteAnalysisSystem:
             if gemini_results:
                 gemini_data = gemini_results.get(route_name, {})
                 
+                      # --- LIMIT INTERMEDIATE CITIES TO 2 ---
+            raw_intermediate = gemini_data.get("intermediate_cities", [])
+
+            intermediate_cities = [
+                {
+                    "name": city.get("name"),
+                    "lat": city.get("lat"),
+                    "lon": city.get("lon")
+                }
+                for city in raw_intermediate
+                if isinstance(city, dict)
+                and "lat" in city
+                and "lon" in city
+            ][:2]
+
+
+                
             # Combine into enriched route
             enriched_route = {
                 "route_name": gemini_data.get("route_name", route_name),
@@ -443,7 +446,7 @@ class RouteAnalysisSystem:
                     "route_name": gemini_data.get("route_name", route_name),
                     "short_summary": gemini_data.get("short_summary", "Analysis pending..."),
                     "reasoning": gemini_data.get("reasoning", "Detailed analysis not available."),
-                    "intermediate_cities": gemini_data.get("intermediate_cities", []),
+                   "intermediate_cities": intermediate_cities,
                     "weather_risk_score": road_data.get("avg_weather_risk", 0) * 100,
                     "road_safety_score": safety_score * 100,
                     "carbon_score": carbon_data.get("carbon_score", 0) * 100,
