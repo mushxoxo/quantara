@@ -88,9 +88,10 @@ class RoadSafetyScorer:
             
             # 2. Get Weather Data for this segment
             # Returns {weather_risk_score, rainfall_mm, ...}
-            w_data = self.weather_analyzer.get_weather_at_point(mid_point[0], mid_point[1])
-            w_data["sample_id"] = i
-            w_data["location"] = mid_point
+            if i % 10 == 0:
+                w_data = self.weather_analyzer.get_weather_at_point(mid_point[0], mid_point[1])
+                w_data["sample_id"] = i
+                w_data["location"] = mid_point
             
             # --- Scoring Logic ---
             base_quality = r_data["base_quality"]

@@ -245,6 +245,7 @@ class RouteAnalysisSystem:
                 }
             )
 
+
             # Step 5: Combine all results into enriched routes
             logger.info("\n" + "="*60)
             logger.info("STEP 5: COMBINING RESULTS")
@@ -383,6 +384,23 @@ class RouteAnalysisSystem:
             if gemini_results:
                 gemini_data = gemini_results.get(route_name, {})
                 
+                      # --- LIMIT INTERMEDIATE CITIES TO 2 ---
+            raw_intermediate = gemini_data.get("intermediate_cities", [])
+
+            intermediate_cities = [
+                {
+                    "name": city.get("name"),
+                    "lat": city.get("lat"),
+                    "lon": city.get("lon")
+                }
+                for city in raw_intermediate
+                if isinstance(city, dict)
+                and "lat" in city
+                and "lon" in city
+            ][:2]
+
+
+                
             # Combine into enriched route
             enriched_route = {
                 "route_name": gemini_data.get("route_name", route_name),
@@ -428,7 +446,7 @@ class RouteAnalysisSystem:
                     "route_name": gemini_data.get("route_name", route_name),
                     "short_summary": gemini_data.get("short_summary", "Analysis pending..."),
                     "reasoning": gemini_data.get("reasoning", "Detailed analysis not available."),
-                    "intermediate_cities": gemini_data.get("intermediate_cities", []),
+                    "intermediate_cities": intermediate_cities,
                     "weather_risk_score": road_data.get("avg_weather_risk", 0) * 100,
                     "road_safety_score": safety_score * 100,
                     "carbon_score": carbon_data.get("carbon_score", 0) * 100,
