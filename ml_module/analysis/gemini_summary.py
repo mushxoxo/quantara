@@ -113,6 +113,10 @@ def generate_summary(routes_data: List[Dict[str, Any]],
             text = text[:-3]
             
         result = json.loads(text.strip())
+        
+        for route_id, route_data in result.items():
+            logger.debug(f"Gemini response for {route_id}: {route_data}")
+
         logger.info("Successfully generated Gemini summaries")
         return result
 
