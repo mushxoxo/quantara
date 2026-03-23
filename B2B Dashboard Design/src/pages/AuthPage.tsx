@@ -23,8 +23,9 @@ export default function AuthPage() {
   }, [isDarkMode]);
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
-  const [mode, setMode] = useState<Mode>("choice"); // Start with choice (Sign In / Sign Up buttons)
   const isGitHubPages = window.location.hostname.includes("github.io");
+  const [mode, setMode] = useState<Mode>(isGitHubPages ? "login" : "choice"); // Skip choice screen on GitHub Pages
+
   const [form, setForm] = useState({
     name: isGitHubPages ? "Test User" : "",
     email: isGitHubPages ? "test@quantara.ai" : "",
@@ -39,7 +40,7 @@ export default function AuthPage() {
 
     try {
       if (mode === "login") {
-        if (isGitHubPages && form.email === "test@quantara.ai" && form.password === "testpassword123") {
+        if (isGitHubPages && form.email.trim() === "test@quantara.ai" && form.password === "testpassword123") {
           localStorage.setItem("token", "fake-jwt-token-for-github-pages");
           localStorage.setItem("userName", "Test User");
           window.location.reload();
@@ -151,6 +152,7 @@ export default function AuthPage() {
                   type="email"
                   placeholder="Enter your email address"
                   className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-lime-500 focus:border-transparent outline-none transition-all dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
+                  value={form.email}
                   onChange={(e) =>
                     setForm({ ...form, email: e.target.value })
                   }
@@ -165,6 +167,7 @@ export default function AuthPage() {
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
                     className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-lime-500 focus:border-transparent outline-none transition-all dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
+                    value={form.password}
                     onChange={(e) =>
                       setForm({ ...form, password: e.target.value })
                     }
@@ -230,6 +233,7 @@ export default function AuthPage() {
                 <input
                   placeholder="Enter your name"
                   className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-lime-500 focus:border-transparent outline-none transition-all dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
+                  value={form.name}
                   onChange={(e) =>
                     setForm({ ...form, name: e.target.value })
                   }
@@ -243,6 +247,7 @@ export default function AuthPage() {
                   type="email"
                   placeholder="Enter your email address"
                   className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-lime-500 focus:border-transparent outline-none transition-all dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
+                  value={form.email}
                   onChange={(e) =>
                     setForm({ ...form, email: e.target.value })
                   }
@@ -257,6 +262,7 @@ export default function AuthPage() {
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
                     className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-lime-500 focus:border-transparent outline-none transition-all dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
+                    value={form.password}
                     onChange={(e) =>
                       setForm({ ...form, password: e.target.value })
                     }
