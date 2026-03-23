@@ -35,7 +35,7 @@ jobs:
           cache-dependency-path: './B2B Dashboard Design/package-lock.json'
           
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Create Env File
         run: |
