@@ -24,10 +24,11 @@ export default function AuthPage() {
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
   const [mode, setMode] = useState<Mode>("choice"); // Start with choice (Sign In / Sign Up buttons)
+  const isGitHubPages = window.location.hostname.includes("github.io");
   const [form, setForm] = useState({
-    name: "",
-    email: "",
-    password: "",
+    name: isGitHubPages ? "Test User" : "",
+    email: isGitHubPages ? "test@quantara.ai" : "",
+    password: isGitHubPages ? "testpassword123" : "",
   });
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -38,6 +39,13 @@ export default function AuthPage() {
 
     try {
       if (mode === "login") {
+        if (isGitHubPages && form.email === "test@quantara.ai" && form.password === "testpassword123") {
+          localStorage.setItem("token", "fake-jwt-token-for-github-pages");
+          localStorage.setItem("userName", "Test User");
+          window.location.reload();
+          return;
+        }
+
         const res = await axios.post("http://localhost:5000/auth/login", {
           email: form.email,
           password: form.password,
